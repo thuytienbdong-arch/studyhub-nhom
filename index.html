@@ -1,0 +1,1430 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#2563eb" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <title>StudyHub — Kho Tri Thức & Học Nhóm</title>
+  <link rel="manifest" href="./manifest.json" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: { 50: '#eff6ff', 100: '#dbeafe', 500: '#3b82f6', 600: '#2563eb', 700: '#1d4ed8' }
+          }
+        }
+      }
+    };
+  </script>
+  <style>
+    /* Tối ưu hiển thị Markdown học thuật trên cả PC & Mobile */
+    .markdown-body h1 { font-size: 1.65rem; font-weight: 800; margin: 1.25rem 0 0.75rem; line-height: 1.3; }
+    .markdown-body h2 { font-size: 1.3rem; font-weight: 700; margin: 1.15rem 0 0.6rem; border-bottom: 1px solid #e2e8f0; padding-bottom: 0.3rem; }
+    .dark .markdown-body h2 { border-color: #334155; }
+    .markdown-body h3 { font-size: 1.1rem; font-weight: 600; margin: 1rem 0 0.4rem; }
+    .markdown-body p { margin-bottom: 0.85rem; line-height: 1.7; }
+    .markdown-body ul { list-style-type: disc; padding-left: 1.4rem; margin-bottom: 0.85rem; }
+    .markdown-body ol { list-style-type: decimal; padding-left: 1.4rem; margin-bottom: 0.85rem; }
+    .markdown-body li { margin-bottom: 0.35rem; line-height: 1.6; }
+    .markdown-body code { background: rgba(37, 99, 235, 0.1); color: #2563eb; padding: 0.15rem 0.4rem; border-radius: 0.35rem; font-size: 0.88em; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .dark .markdown-body code { background: rgba(96, 165, 250, 0.15); color: #60a5fa; }
+    .markdown-body pre { background: #0f172a; color: #f8fafc; padding: 1rem; border-radius: 0.75rem; overflow-x: auto; margin: 1rem 0; font-size: 0.875rem; }
+    .markdown-body pre code { background: transparent; color: inherit; padding: 0; }
+    .markdown-body blockquote { border-left: 4px solid #2563eb; padding: 0.5rem 1rem; background: rgba(37, 99, 235, 0.06); border-radius: 0 0.5rem 0.5rem 0; margin: 0.9rem 0; }
+    .markdown-body table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: 0.92rem; display: block; overflow-x: auto; }
+    .markdown-body th, .markdown-body td { border: 1px solid #cbd5e1; padding: 0.55rem 0.75rem; text-align: left; }
+    .dark .markdown-body th, .dark .markdown-body td { border-color: #334155; }
+    .markdown-body th { background: rgba(37, 99, 235, 0.08); font-weight: 600; }
+    .pb-safe { padding-bottom: calc(env(safe-area-inset-bottom) + 0.5rem); }
+    /* Ẩn thanh cuộn ngang nhưng vẫn vuốt mượt trên mobile */
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 dark:bg-slate-950 dark:text-slate-100 transition-colors duration-200 antialiased">
+
+  <!-- TOP HEADER (Mobile & Desktop) -->
+  <header class="sticky top-0 z-30 bg-white/90 dark:bg-slate-900/90 backdrop-blur border-b border-slate-200 dark:border-slate-800">
+    <div class="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between gap-3">
+      <div class="flex items-center gap-2.5 cursor-pointer" onclick="switchTab('lessons')">
+        <div class="w-9 h-9 rounded-xl bg-brand-600 text-white flex items-center justify-center font-bold text-lg shadow-sm">S</div>
+        <div>
+          <h1 class="font-bold text-base sm:text-lg leading-tight tracking-tight">StudyHub</h1>
+          <p id="syncBadge" class="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">● Sẵn sàng học tập</p>
+        </div>
+      </div>
+
+      <!-- Search Bar (Desktop) -->
+      <div class="hidden md:flex flex-1 max-w-md relative">
+        <input id="globalSearchDesktop" type="text" oninput="handleSearch(this.value)"
+          placeholder="Tìm bài giảng, thuật ngữ, câu hỏi..."
+          class="w-full pl-9 pr-4 py-2 text-sm rounded-xl bg-slate-100 dark:bg-slate-800 border border-transparent focus:border-brand-500 focus:bg-white dark:focus:bg-slate-900 outline-none transition" />
+        <span class="absolute left-3 top-2.5 text-slate-400 text-sm">🔍</span>
+      </div>
+
+      <!-- Right Controls -->
+      <div class="flex items-center gap-2">
+        <button onclick="toggleDarkMode()" title="Giao diện Sáng/Tối"
+          class="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 flex items-center justify-center text-sm transition">
+          🌓
+        </button>
+        <button onclick="switchTab('settings')" id="userBadgeBtn"
+          class="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-brand-50 dark:bg-brand-600/20 text-brand-700 dark:text-brand-300 text-xs sm:text-sm font-semibold hover:bg-brand-100 transition">
+          <span>👤</span>
+          <span id="currentUserName" class="max-w-[90px] truncate">Thành viên</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Search Bar (Mobile) -->
+    <div class="md:hidden px-4 pb-2.5">
+      <div class="relative">
+        <input id="globalSearchMobile" type="text" oninput="handleSearch(this.value)"
+          placeholder="Tìm bài giảng, từ khóa, môn học..."
+          class="w-full pl-9 pr-4 py-2 text-sm rounded-xl bg-slate-100 dark:bg-slate-800 border border-transparent focus:border-brand-500 outline-none" />
+        <span class="absolute left-3 top-2.5 text-slate-400 text-sm">🔍</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN LAYOUT -->
+  <div class="max-w-7xl mx-auto px-4 pt-5 pb-24 md:pb-10 flex flex-col md:flex-row gap-6">
+
+    <!-- DESKTOP SIDEBAR NAVIGATION -->
+    <aside class="hidden md:flex md:w-64 shrink-0 flex-col gap-2">
+      <nav class="bg-white dark:bg-slate-900 rounded-2xl p-3 border border-slate-200 dark:border-slate-800 shadow-sm space-y-1 sticky top-20">
+        <button onclick="switchTab('lessons')" data-nav="lessons" class="nav-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition">
+          <span>📚</span> Kho Kiến Thức
+        </button>
+        <button onclick="switchTab('quiz')" data-nav="quiz" class="nav-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition">
+          <span>🎯</span> Luyện Trắc Nghiệm
+        </button>
+        <button onclick="switchTab('contribute')" data-nav="contribute" class="nav-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition">
+          <span>✨</span> Thêm Bài & AI Tạo Đề
+        </button>
+        <button onclick="switchTab('wiki')" data-nav="wiki" class="nav-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition">
+          <span>🌐</span> Tra Cứu Mở Rộng
+        </button>
+        <button onclick="switchTab('leaderboard')" data-nav="leaderboard" class="nav-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition">
+          <span>🏆</span> Nhóm & Xếp Hạng
+        </button>
+        <button onclick="switchTab('settings')" data-nav="settings" class="nav-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition">
+          <span>⚙️</span> Cài Đặt & Đồng Bộ
+        </button>
+
+        <div class="pt-3 mt-3 border-t border-slate-100 dark:border-slate-800 px-2">
+          <p class="text-xs text-slate-400 font-medium mb-1">Thống kê kho học tập</p>
+          <div class="flex justify-between text-xs text-slate-600 dark:text-slate-300 py-1">
+            <span>Bài giảng:</span>
+            <span id="statLessons" class="font-bold">0</span>
+          </div>
+          <div class="flex justify-between text-xs text-slate-600 dark:text-slate-300 py-1">
+            <span>Câu hỏi trắc nghiệm:</span>
+            <span id="statQuestions" class="font-bold">0</span>
+          </div>
+          <div class="flex justify-between text-xs text-amber-600 dark:text-amber-400 py-1">
+            <span>Câu cần ôn lại:</span>
+            <span id="statWrong" class="font-bold">0</span>
+          </div>
+        </div>
+      </nav>
+    </aside>
+
+    <!-- MAIN CONTENT AREA -->
+    <main class="flex-1 min-w-0">
+
+      <!-- TAB 1: KHO KIẾN THỨC (LESSONS) -->
+      <section id="tab-lessons" class="space-y-4">
+        <!-- Subject Filter Pills -->
+        <div id="subjectFilters" class="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1"></div>
+
+        <!-- Lesson List View -->
+        <div id="lessonListContainer" class="grid grid-cols-1 sm:grid-cols-2 gap-4"></div>
+
+        <!-- Lesson Reader View (Hidden by default) -->
+        <div id="lessonDetailContainer" class="hidden bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 sm:p-8 shadow-sm space-y-6">
+          <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800 pb-4">
+            <button onclick="closeLessonDetail()" class="inline-flex items-center gap-1.5 text-sm font-semibold text-brand-600 hover:text-brand-700">
+              ← Quay lại danh sách
+            </button>
+            <div class="flex items-center gap-2">
+              <button onclick="shareCurrentLesson()" class="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-xs font-semibold flex items-center gap-1.5">
+                🔗 Chia sẻ bài
+              </button>
+              <button onclick="startLessonQuiz()" class="px-3.5 py-1.5 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-xs font-semibold flex items-center gap-1.5 shadow-sm">
+                🎯 Làm trắc nghiệm bài này
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <div class="flex flex-wrap items-center gap-2 mb-2">
+              <span id="detailSubject" class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-brand-50 text-brand-700 dark:bg-brand-900/40 dark:text-brand-300"></span>
+              <span id="detailAuthor" class="text-xs text-slate-400"></span>
+            </div>
+            <h1 id="detailTitle" class="text-2xl sm:text-3xl font-extrabold tracking-tight"></h1>
+            <div id="detailTags" class="flex flex-wrap gap-1.5 mt-3"></div>
+          </div>
+
+          <!-- Rendered Markdown Content -->
+          <article id="detailMarkdown" class="markdown-body text-slate-700 dark:text-slate-200"></article>
+
+          <!-- Context-Aware AI Tutor Box -->
+          <div class="rounded-2xl bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-slate-800/80 dark:to-slate-800 p-4 sm:p-5 border border-blue-100 dark:border-slate-700 space-y-3">
+            <div class="flex items-center justify-between">
+              <h3 class="font-bold text-sm sm:text-base flex items-center gap-2 text-brand-700 dark:text-brand-300">
+                🤖 Gia Sư AI Bám Sát Bài Học
+              </h3>
+              <span class="text-[11px] text-slate-500">Hỏi sâu hoặc xin ví dụ thực tế</span>
+            </div>
+            <div class="flex flex-wrap gap-2">
+              <button onclick="askLessonAI('Giải thích ngắn gọn, dễ hiểu nhất nội dung chính của bài này cho người mới bắt đầu.')"
+                class="text-xs px-3 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 hover:border-brand-500 font-medium">
+                💡 Tóm tắt dễ hiểu
+              </button>
+              <button onclick="askLessonAI('Cho 2 ví dụ thực tế hoặc đoạn code minh họa dễ nhớ liên quan đến bài học này.')"
+                class="text-xs px-3 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 hover:border-brand-500 font-medium">
+                🛠️ Cho ví dụ thực tế
+              </button>
+              <button onclick="askLessonAI('Đặt 3 câu hỏi vấn đáp nhanh kèm đáp án ngắn để kiểm tra mức độ hiểu bài này.')"
+                class="text-xs px-3 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 hover:border-brand-500 font-medium">
+                🧠 Hỏi nhanh kiến thức
+              </button>
+            </div>
+            <div class="flex gap-2">
+              <input id="aiTutorInput" type="text" placeholder="Nhập câu hỏi của bạn về bài học này..."
+                class="flex-1 px-3.5 py-2 text-sm rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 outline-none focus:border-brand-500" />
+              <button onclick="askLessonAI()" class="px-4 py-2 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-sm font-semibold shrink-0">
+                Hỏi AI
+              </button>
+            </div>
+            <div id="aiTutorOutput" class="hidden text-sm bg-white dark:bg-slate-900 rounded-xl p-4 border border-slate-200 dark:border-slate-700 markdown-body"></div>
+          </div>
+
+          <!-- Wikipedia Live Knowledge Box -->
+          <div id="detailWikiBox" class="rounded-2xl bg-slate-50 dark:bg-slate-800/50 p-4 sm:p-5 border border-slate-200 dark:border-slate-800 space-y-2">
+            <div class="flex items-center justify-between">
+              <h3 class="font-bold text-sm flex items-center gap-2">🌐 Kiến thức mở rộng từ Wikipedia</h3>
+              <span id="wikiKeywordBadge" class="text-xs text-slate-400"></span>
+            </div>
+            <p id="detailWikiText" class="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">Đang tải thông tin tham khảo...</p>
+            <a id="detailWikiLink" href="#" target="_blank" rel="noopener" class="inline-block text-xs font-semibold text-brand-600 hover:underline">Đọc toàn bộ trên Wikipedia →</a>
+          </div>
+
+          <!-- Group Discussion & Comments -->
+          <div class="pt-4 border-t border-slate-100 dark:border-slate-800 space-y-4">
+            <h3 class="font-bold text-base">💬 Thảo luận & Mẹo ghi nhớ của nhóm</h3>
+            <div class="flex gap-2">
+              <input id="commentInput" type="text" placeholder="Chia sẻ mẹo nhớ, đặt câu hỏi hoặc bổ sung kiến thức..."
+                class="flex-1 px-3.5 py-2.5 text-sm rounded-xl bg-slate-100 dark:bg-slate-800 outline-none focus:ring-2 focus:ring-brand-500" />
+              <button onclick="postComment()" class="px-4 py-2.5 rounded-xl bg-slate-900 dark:bg-brand-600 text-white text-sm font-semibold shrink-0">
+                Gửi
+              </button>
+            </div>
+            <div id="commentsList" class="space-y-2.5"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 2: LUYỆN TRẮC NGHIỆM (QUIZ) -->
+      <section id="tab-quiz" class="hidden space-y-4">
+        <div class="bg-white dark:bg-slate-900 rounded-2xl p-5 border border-slate-200 dark:border-slate-800 shadow-sm flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 class="text-lg font-bold">🎯 Trung Tâm Luyện Trắc Nghiệm</h2>
+            <p class="text-xs sm:text-sm text-slate-500">Chọn bài học để luyện tập hoặc ôn lại các câu từng làm sai.</p>
+          </div>
+          <div class="flex flex-wrap gap-2">
+            <select id="quizLessonSelect" onchange="loadQuizBySelection()"
+              class="px-3 py-2 text-sm rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-medium outline-none">
+            </select>
+            <button onclick="startWrongQuestionsQuiz()"
+              class="px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs sm:text-sm font-semibold shadow-sm">
+              🔥 Ôn câu làm sai (<span id="wrongCountBtn">0</span>)
+            </button>
+          </div>
+        </div>
+
+        <div id="quizContainer" class="space-y-4"></div>
+      </section>
+
+      <!-- TAB 3: THÊM BÀI & AI TẠO ĐỀ (CONTRIBUTE) -->
+      <section id="tab-contribute" class="hidden space-y-5">
+        <!-- AI Auto-Generator Card -->
+        <div class="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl p-5 sm:p-6 text-white shadow-md space-y-4">
+          <div class="flex items-start justify-between gap-3">
+            <div>
+              <span class="px-2.5 py-0.5 rounded-full bg-white/20 text-xs font-semibold">✨ Tự động hóa tri thức</span>
+              <h2 class="text-lg sm:text-xl font-bold mt-1.5">AI Chuyển Tài Liệu Thành Bài Giảng & Trắc Nghiệm</h2>
+              <p class="text-xs sm:text-sm text-blue-100 mt-1">Dán ghi chú, slide bài giảng hoặc chủ đề bất kỳ — AI sẽ tự động biên soạn bài học Markdown chuẩn + bộ câu hỏi trắc nghiệm có giải thích.</p>
+            </div>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <input id="aiGenSubject" type="text" placeholder="Môn học (VD: Cấu trúc dữ liệu, Tiếng Anh...)"
+              class="px-3.5 py-2.5 rounded-xl bg-white/15 placeholder-blue-200 text-white text-sm border border-white/25 outline-none focus:bg-white/25" />
+            <input id="aiGenTopic" type="text" placeholder="Tên chủ đề / bài học..."
+              class="px-3.5 py-2.5 rounded-xl bg-white/15 placeholder-blue-200 text-white text-sm border border-white/25 outline-none focus:bg-white/25" />
+          </div>
+          <textarea id="aiGenRawText" rows="3" placeholder="Dán nội dung tài liệu thô hoặc yêu cầu kiến thức bạn muốn AI tổng hợp..."
+            class="w-full px-3.5 py-2.5 rounded-xl bg-white/15 placeholder-blue-200 text-white text-sm border border-white/25 outline-none focus:bg-white/25"></textarea>
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <span id="aiGenStatus" class="text-xs text-blue-100">Cần nhập Gemini API Key miễn phí trong mục Cài đặt để dùng tính năng này.</span>
+            <button onclick="generateLessonWithAI()" id="aiGenBtn"
+              class="px-5 py-2.5 rounded-xl bg-white text-brand-700 hover:bg-blue-50 font-bold text-sm shadow transition">
+              ⚡ Tạo Bài Học & Trắc Nghiệm
+            </button>
+          </div>
+        </div>
+
+        <!-- Manual Lesson Form -->
+        <div class="bg-white dark:bg-slate-900 rounded-2xl p-5 sm:p-6 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
+          <h3 class="text-base sm:text-lg font-bold">📝 Đóng Góp Bài Giảng Mới Cho Nhóm</h3>
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <input id="newLessonSubject" type="text" placeholder="Môn học (VD: Lập trình Web)"
+              class="px-3.5 py-2.5 text-sm rounded-xl bg-slate-100 dark:bg-slate-800 outline-none focus:ring-2 focus:ring-brand-500" />
+            <input id="newLessonTitle" type="text" placeholder="Tiêu đề bài giảng"
+              class="px-3.5 py-2.5 text-sm rounded-xl bg-slate-100 dark:bg-slate-800 outline-none focus:ring-2 focus:ring-brand-500" />
+            <input id="newLessonTags" type="text" placeholder="Tags (VD: React, Hooks, Cơ bản)"
+              class="px-3.5 py-2.5 text-sm rounded-xl bg-slate-100 dark:bg-slate-800 outline-none focus:ring-2 focus:ring-brand-500" />
+          </div>
+          <textarea id="newLessonContent" rows="6" placeholder="Viết nội dung bài giảng bằng Markdown (hỗ trợ ## Tiêu đề, **in đậm**, - danh sách, ```code```)..."
+            class="w-full px-3.5 py-2.5 text-sm rounded-xl bg-slate-100 dark:bg-slate-800 outline-none focus:ring-2 focus:ring-brand-500 font-mono"></textarea>
+          <button onclick="saveNewLesson()" class="px-5 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-sm font-semibold">
+            + Đăng Bài Giảng (+20 điểm đóng góp)
+          </button>
+        </div>
+
+        <!-- Manual Quiz Question Form -->
+        <div class="bg-white dark:bg-slate-900 rounded-2xl p-5 sm:p-6 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
+          <h3 class="text-base sm:text-lg font-bold">❓ Thêm Câu Hỏi Trắc Nghiệm</h3>
+          <select id="newQuestionLessonId"
+            class="w-full px-3.5 py-2.5 text-sm rounded-xl bg-slate-100 dark:bg-slate-800 outline-none">
+          </select>
+          <input id="newQuestionText" type="text" placeholder="Nhập nội dung câu hỏi..."
+            class="w-full px-3.5 py-2.5 text-sm rounded-xl bg-slate-100 dark:bg-slate-800 outline-none" />
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <input id="opt0" type="text" placeholder="Đáp án A" class="px-3.5 py-2 text-sm rounded-xl bg-slate-100 dark:bg-slate-800 outline-none" />
+            <input id="opt1" type="text" placeholder="Đáp án B" class="px-3.5 py-2 text-sm rounded-xl bg-slate-100 dark:bg-slate-800 outline-none" />
+            <input id="opt2" type="text" placeholder="Đáp án C" class="px-3.5 py-2 text-sm rounded-xl bg-slate-100 dark:bg-slate-800 outline-none" />
+            <input id="opt3" type="text" placeholder="Đáp án D" class="px-3.5 py-2 text-sm rounded-xl bg-slate-100 dark:bg-slate-800 outline-none" />
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <select id="newQuestionCorrect" class="px-3.5 py-2.5 text-sm rounded-xl bg-slate-100 dark:bg-slate-800 outline-none">
+              <option value="0">Đáp án đúng: A</option>
+              <option value="1">Đáp án đúng: B</option>
+              <option value="2">Đáp án đúng: C</option>
+              <option value="3">Đáp án đúng: D</option>
+            </select>
+            <input id="newQuestionExplanation" type="text" placeholder="Giải thích lý do đúng (hiện sau khi nộp bài)..."
+              class="px-3.5 py-2.5 text-sm rounded-xl bg-slate-100 dark:bg-slate-800 outline-none" />
+          </div>
+          <button onclick="saveNewQuestion()" class="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold">
+            + Lưu Câu Hỏi (+10 điểm đóng góp)
+          </button>
+        </div>
+      </section>
+
+      <!-- TAB 4: TRA CỨU MỞ RỘNG (WIKIPEDIA & KNOWLEDGE SEARCH) -->
+      <section id="tab-wiki" class="hidden space-y-4">
+        <div class="bg-white dark:bg-slate-900 rounded-2xl p-5 sm:p-6 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
+          <div>
+            <h2 class="text-lg font-bold">🌐 Tra Cứu Bách Khoa Tri Thức Trực Tiếp</h2>
+            <p class="text-xs sm:text-sm text-slate-500">Tra cứu nhanh thuật ngữ chuyên ngành từ Wikipedia và lưu thẳng thành bài giảng mới cho nhóm.</p>
+          </div>
+          <div class="flex gap-2">
+            <input id="wikiSearchInput" type="text" placeholder="Nhập khái niệm cần tra cứu (VD: Thuật toán Dijkstra, SQL, React...)"
+              onkeydown="if(event.key==='Enter') searchWikipedia()"
+              class="flex-1 px-4 py-2.5 text-sm rounded-xl bg-slate-100 dark:bg-slate-800 outline-none focus:ring-2 focus:ring-brand-500" />
+            <button onclick="searchWikipedia()" class="px-5 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-sm font-semibold shrink-0">
+              Tra cứu
+            </button>
+          </div>
+          <div id="wikiResultsContainer" class="space-y-3"></div>
+        </div>
+      </section>
+
+      <!-- TAB 5: NHÓM & BẢNG XẾP HẠNG (LEADERBOARD) -->
+      <section id="tab-leaderboard" class="hidden space-y-4">
+        <div class="bg-white dark:bg-slate-900 rounded-2xl p-5 sm:p-6 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 class="text-lg font-bold">🏆 Bảng Xếp Hạng Đóng Góp & Học Tập Nhóm</h2>
+              <p class="text-xs sm:text-sm text-slate-500">Tích điểm khi thêm bài giảng (+20đ), tạo câu hỏi (+10đ) hoặc hoàn thành bài trắc nghiệm (+15đ).</p>
+            </div>
+            <button onclick="copyInviteLink()" class="px-4 py-2 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-xs sm:text-sm font-semibold">
+              📤 Mời bạn bè vào học
+            </button>
+          </div>
+          <div id="leaderboardList" class="divide-y divide-slate-100 dark:divide-slate-800"></div>
+        </div>
+      </section>
+
+      <!-- TAB 6: CÀI ĐẶT & ĐỒNG BỘ (SETTINGS) -->
+      <section id="tab-settings" class="hidden space-y-4">
+        <!-- Profile Card -->
+        <div class="bg-white dark:bg-slate-900 rounded-2xl p-5 sm:p-6 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
+          <h2 class="text-lg font-bold">👤 Hồ Sơ Thành Viên</h2>
+          <div class="flex flex-col sm:flex-row gap-3">
+            <input id="settingDisplayName" type="text" placeholder="Nhập tên hiển thị của bạn trong nhóm..."
+              class="flex-1 px-4 py-2.5 text-sm rounded-xl bg-slate-100 dark:bg-slate-800 outline-none focus:ring-2 focus:ring-brand-500" />
+            <button onclick="saveUserProfile()" class="px-5 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-sm font-semibold">
+              Lưu tên hiển thị
+            </button>
+          </div>
+        </div>
+
+        <!-- Supabase Cloud Sync Card -->
+        <div class="bg-white dark:bg-slate-900 rounded-2xl p-5 sm:p-6 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
+          <div>
+            <h2 class="text-lg font-bold">☁️ Đồng Bộ Nhóm Thời Gian Thực (Supabase)</h2>
+            <p class="text-xs sm:text-sm text-slate-500 mt-1">Nhập thông tin dự án Supabase để bạn và bạn bè dùng chung dữ liệu trên mọi điện thoại và máy tính.</p>
+          </div>
+          <div class="space-y-3">
+            <input id="settingSupabaseUrl" type="text" placeholder="Supabase Project URL (VD: https://xyz.supabase.co)"
+              class="w-full px-4 py-2.5 text-sm rounded-xl bg-slate-100 dark:bg-slate-800 outline-none" />
+            <input id="settingSupabaseKey" type="password" placeholder="Supabase Anon Public Key"
+              class="w-full px-4 py-2.5 text-sm rounded-xl bg-slate-100 dark:bg-slate-800 outline-none" />
+            <div class="flex flex-wrap gap-2">
+              <button onclick="saveCloudSettings()" class="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold">
+                Lưu & Kết Nối Cloud
+              </button>
+              <button onclick="syncFromSupabase()" class="px-4 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-sm font-semibold">
+                🔄 Tải lại dữ liệu mới nhất
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Gemini AI Key Card -->
+        <div class="bg-white dark:bg-slate-900 rounded-2xl p-5 sm:p-6 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
+          <div>
+            <h2 class="text-lg font-bold">🤖 Cấu Hình Trợ Lý AI (Gemini API)</h2>
+            <p class="text-xs sm:text-sm text-slate-500 mt-1">Khóa API được lưu bảo mật ngay trên trình duyệt của bạn để dùng Gia sư AI và Tự động tạo bài giảng.</p>
+          </div>
+          <div class="flex flex-col sm:flex-row gap-3">
+            <input id="settingGeminiKey" type="password" placeholder="Dán Gemini API Key (AIzaSy...)"
+              class="flex-1 px-4 py-2.5 text-sm rounded-xl bg-slate-100 dark:bg-slate-800 outline-none" />
+            <button onclick="saveGeminiKey()" class="px-5 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-sm font-semibold">
+              Lưu API Key
+            </button>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- MOBILE BOTTOM NAVIGATION BAR (Optimizes 1-hand phone usage) -->
+  <nav class="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur border-t border-slate-200 dark:border-slate-800 pb-safe">
+    <div class="grid grid-cols-5 h-16">
+      <button onclick="switchTab('lessons')" data-nav="lessons" class="nav-btn-mobile flex flex-col items-center justify-center gap-0.5 text-[11px] font-semibold">
+        <span class="text-lg">📚</span>
+        <span>Bài học</span>
+      </button>
+      <button onclick="switchTab('quiz')" data-nav="quiz" class="nav-btn-mobile flex flex-col items-center justify-center gap-0.5 text-[11px] font-semibold">
+        <span class="text-lg">🎯</span>
+        <span>Trắc nghiệm</span>
+      </button>
+      <button onclick="switchTab('contribute')" data-nav="contribute" class="nav-btn-mobile flex flex-col items-center justify-center gap-0.5 text-[11px] font-semibold">
+        <span class="text-lg">✨</span>
+        <span>Thêm / AI</span>
+      </button>
+      <button onclick="switchTab('wiki')" data-nav="wiki" class="nav-btn-mobile flex flex-col items-center justify-center gap-0.5 text-[11px] font-semibold">
+        <span class="text-lg">🌐</span>
+        <span>Tra cứu</span>
+      </button>
+      <button onclick="switchTab('leaderboard')" data-nav="leaderboard" class="nav-btn-mobile flex flex-col items-center justify-center gap-0.5 text-[11px] font-semibold">
+        <span class="text-lg">🏆</span>
+        <span>Nhóm</span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- TOAST NOTIFICATION -->
+  <div id="toast" class="fixed top-20 right-4 z-50 hidden px-4 py-3 rounded-xl bg-slate-900 text-white text-sm font-medium shadow-lg transition-all"></div>
+
+  <script>
+    // =========================================================================
+    // 1. DỮ LIỆU MẪU KHỞI TẠO (HOẠT ĐỘNG NGAY CẢ KHI CHƯA KẾT NỐI CLOUD)
+    // =========================================================================
+    const DEFAULT_LESSONS = [
+      {
+        id: "lesson-web-1",
+        subject: "Lập trình Web",
+        title: "Kiến trúc Front-end & Tư duy Component trong React",
+        tags: ["HTML5", "ReactJS", "Component", "State"],
+        wiki_keyword: "React (phần mềm)",
+        author_name: "Nhóm Quản Trị",
+        created_at: new Date().toISOString(),
+        content_md: `## 1. Tư duy chia nhỏ giao diện (Component-Based)
+Thay vì viết toàn bộ trang web trong một file HTML khổng lồ, React chia giao diện thành các **Component** độc lập, có thể tái sử dụng nhiều lần (ví dụ: \`Navbar\`, \`LessonCard\`, \`QuizBox\`).
+
+## 2. State và Props khác nhau thế nào?
+| Đặc điểm | Props (Properties) | State (Trạng thái) |
+| :--- | :--- | :--- |
+| **Nguồn dữ liệu** | Truyền từ Component cha xuống con | Quản lý nội bộ bên trong Component |
+| **Khả năng thay đổi** | Chỉ đọc (Read-only) | Có thể cập nhật qua \`useState\` |
+| **Mục đích** | Cấu hình hiển thị | Lưu tương tác người dùng (input, điểm số) |
+
+## 3. Ví dụ Hook \`useState\` & \`useEffect\`
+\`\`\`javascript
+import { useState, useEffect } from 'react';
+
+function StudyTimer() {
+  const [seconds, setSeconds] = useState(0);
+
+  useEffect(() => {
+    const timer = setInterval(() => setSeconds(s => s + 1), 1000);
+    return () => clearInterval(timer); // Dọn dẹp bộ nhớ
+  }, []);
+
+  return <p>Thời gian tập trung: {seconds} giây</p>;
+}
+\`\`\`
+> **Mẹo ghi nhớ:** Luôn truyền mảng phụ thuộc \`[]\` vào \`useEffect\` nếu chỉ muốn gọi API đúng 1 lần khi mở trang.`
+      },
+      {
+        id: "lesson-sql-1",
+        subject: "Cơ sở dữ liệu",
+        title: "Thiết kế bảng quan hệ & Ràng buộc toàn vẹn trong SQL",
+        tags: ["SQL Server", "Primary Key", "Foreign Key", "JOIN"],
+        wiki_keyword: "SQL",
+        author_name: "Nhóm Quản Trị",
+        created_at: new Date().toISOString(),
+        content_md: `## 1. Các loại ràng buộc (Constraints) cốt lõi
+- **PRIMARY KEY**: Khóa chính xác định duy nhất mỗi dòng dữ liệu, không được phép \`NULL\` và không trùng lặp.
+- **FOREIGN KEY**: Khóa ngoại liên kết dữ liệu giữa hai bảng, đảm bảo toàn vẹn tham chiếu.
+- **CHECK**: Kiểm tra điều kiện hợp lệ trước khi lưu (ví dụ: \`CHECK (Diem >= 0 AND Diem <= 10)\`).
+
+## 2. Phân biệt các phép nối bảng (JOIN)
+\`\`\`sql
+-- Lấy danh sách sinh viên và điểm số (kể cả sinh viên chưa có điểm)
+SELECT sv.MaSV, sv.HoTen, kq.Diem
+FROM SinhVien sv
+LEFT JOIN KetQua kq ON sv.MaSV = kq.MaSV;
+\`\`\`
+- **INNER JOIN**: Chỉ lấy các bản ghi khớp nhau ở cả 2 bảng.
+- **LEFT JOIN**: Lấy toàn bộ bản ghi ở bảng bên trái, bảng phải không có sẽ trả về \`NULL\`.`
+      },
+      {
+        id: "lesson-eng-1",
+        subject: "Tiếng Anh Chuyên Ngành",
+        title: "Thuật ngữ Công nghệ thông tin & Đọc hiểu tài liệu kỹ thuật",
+        tags: ["English", "IT Vocabulary", "Documentation"],
+        wiki_keyword: "Software engineering",
+        author_name: "Nhóm Quản Trị",
+        created_at: new Date().toISOString(),
+        content_md: `## 1. Từ vựng cốt lõi khi đọc tài liệu (Docs)
+- **Authentication (AuthN):** Xác thực danh tính (bạn là ai — đăng nhập bằng email/mật khẩu).
+- **Authorization (AuthZ):** Phân quyền truy cập (bạn được phép làm gì — admin hay thành viên).
+- **Deployment:** Triển khai ứng dụng từ máy cá nhân lên máy chủ (Netlify, Vercel).
+- **Repository (Repo):** Kho lưu trữ mã nguồn trên GitHub.
+
+## 2. Mẫu câu giao tiếp trong nhóm dự án
+- *"Let's break this feature down into smaller tasks."* (Hãy chia nhỏ tính năng này thành các đầu việc nhỏ hơn.)
+- *"I pushed the responsive layout update to the main branch."* (Mình đã đẩy bản cập nhật giao diện đa thiết bị lên nhánh chính rồi.)`
+      }
+    ];
+
+    const DEFAULT_QUESTIONS = [
+      {
+        id: "q-1",
+        lesson_id: "lesson-web-1",
+        question: "Trong React, dữ liệu truyền từ Component cha xuống Component con được gọi là gì?",
+        options: ["State", "Props", "Context", "Reducer"],
+        correct_index: 1,
+        explanation: "Props (Properties) là cơ chế truyền dữ liệu một chiều từ Component cha xuống Component con và chỉ có quyền đọc.",
+        author_name: "Nhóm Quản Trị"
+      },
+      {
+        id: "q-2",
+        lesson_id: "lesson-web-1",
+        question: "Để hàm bên trong useEffect chỉ chạy đúng 1 lần sau khi Component render lần đầu, ta truyền tham số thứ hai là gì?",
+        options: ["Không truyền gì cả", "Mảng rỗng []", "Giá trị null", "Từ khóa once"],
+        correct_index: 1,
+        explanation: "Truyền mảng phụ thuộc rỗng [] báo cho React biết effect không phụ thuộc vào biến nào nên chỉ chạy 1 lần lúc mount.",
+        author_name: "Nhóm Quản Trị"
+      },
+      {
+        id: "q-3",
+        lesson_id: "lesson-sql-1",
+        question: "Phép nối nào giữ lại toàn bộ bản ghi của bảng bên trái ngay cả khi không có dữ liệu khớp ở bảng bên phải?",
+        options: ["INNER JOIN", "RIGHT JOIN", "LEFT JOIN", "CROSS JOIN"],
+        correct_index: 2,
+        explanation: "LEFT JOIN trả về tất cả các hàng từ bảng bên trái và các hàng khớp từ bảng bên phải (nếu không khớp trả về NULL).",
+        author_name: "Nhóm Quản Trị"
+      },
+      {
+        id: "q-4",
+        lesson_id: "lesson-eng-1",
+        question: "Thuật ngữ 'Authorization' trong phát triển web có nghĩa là gì?",
+        options: ["Xác thực danh tính người dùng", "Phân quyền truy cập tài nguyên", "Mã hóa cơ sở dữ liệu", "Nén tệp tin hình ảnh"],
+        correct_index: 1,
+        explanation: "Authentication là xác thực danh tính, còn Authorization là kiểm tra quyền hạn truy cập của người dùng đó.",
+        author_name: "Nhóm Quản Trị"
+      }
+    ];
+
+    // =========================================================================
+    // 2. QUẢN LÝ TRẠNG THÁI ỨNG DỤNG & LƯU TRỮ
+    // =========================================================================
+    let state = {
+      currentTab: "lessons",
+      selectedSubject: "Tất cả",
+      searchQuery: "",
+      activeLessonId: null,
+      lessons: JSON.parse(localStorage.getItem("sh_lessons")) || DEFAULT_LESSONS,
+      questions: JSON.parse(localStorage.getItem("sh_questions")) || DEFAULT_QUESTIONS,
+      comments: JSON.parse(localStorage.getItem("sh_comments")) || [],
+      wrongQuestionIds: JSON.parse(localStorage.getItem("sh_wrong_ids")) || [],
+      profiles: JSON.parse(localStorage.getItem("sh_profiles")) || [
+        { username: "admin", display_name: "Nhóm Quản Trị", points: 120 }
+      ],
+      userName: localStorage.getItem("sh_username") || "Thành viên",
+      supabaseUrl: localStorage.getItem("sh_sb_url") || "",
+      supabaseKey: localStorage.getItem("sh_sb_key") || "",
+      geminiKey: localStorage.getItem("sh_gemini_key") || ""
+    };
+
+    let supabaseClient = null;
+
+    function persistLocal() {
+      localStorage.setItem("sh_lessons", JSON.stringify(state.lessons));
+      localStorage.setItem("sh_questions", JSON.stringify(state.questions));
+      localStorage.setItem("sh_comments", JSON.stringify(state.comments));
+      localStorage.setItem("sh_wrong_ids", JSON.stringify(state.wrongQuestionIds));
+      localStorage.setItem("sh_profiles", JSON.stringify(state.profiles));
+    }
+
+    function showToast(msg) {
+      const el = document.getElementById("toast");
+      el.textContent = msg;
+      el.classList.remove("hidden");
+      clearTimeout(window._toastTimer);
+      window._toastTimer = setTimeout(() => el.classList.add("hidden"), 3000);
+    }
+
+    // =========================================================================
+    // 3. KẾT NỐI SUPABASE ĐỒNG BỘ NHÓM THỜI GIAN THỰC
+    // =========================================================================
+    function initSupabase() {
+      if (state.supabaseUrl && state.supabaseKey && window.supabase) {
+        try {
+          supabaseClient = window.supabase.createClient(state.supabaseUrl, state.supabaseKey);
+          document.getElementById("syncBadge").innerHTML = "● Đã kết nối Cloud Nhóm";
+          document.getElementById("syncBadge").className = "text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold";
+          syncFromSupabase();
+        } catch (e) {
+          console.error("Supabase init error:", e);
+        }
+      } else {
+        document.getElementById("syncBadge").innerHTML = "● Chế độ Offline / Cục bộ";
+        document.getElementById("syncBadge").className = "text-[11px] text-amber-600 dark:text-amber-400 font-medium";
+      }
+    }
+
+    async function syncFromSupabase() {
+      if (!supabaseClient) return;
+      try {
+        const [lessonsRes, questionsRes, commentsRes, profilesRes] = await Promise.all([
+          supabaseClient.from("lessons").select("*").order("created_at", { ascending: false }),
+          supabaseClient.from("questions").select("*"),
+          supabaseClient.from("comments").select("*").order("created_at", { ascending: true }),
+          supabaseClient.from("profiles").select("*").order("points", { ascending: false })
+        ]);
+
+        if (lessonsRes.data && lessonsRes.data.length > 0) state.lessons = lessonsRes.data;
+        if (questionsRes.data && questionsRes.data.length > 0) state.questions = questionsRes.data;
+        if (commentsRes.data) state.comments = commentsRes.data;
+        if (profilesRes.data && profilesRes.data.length > 0) state.profiles = profilesRes.data;
+
+        persistLocal();
+        renderAll();
+        showToast("Đã đồng bộ dữ liệu mới nhất của nhóm!");
+      } catch (err) {
+        showToast("Không thể đồng bộ Supabase, kiểm tra lại URL/Key.");
+      }
+    }
+
+    async function addPointsToCurrentUser(pts) {
+      const name = state.userName || "Thành viên";
+      const uname = name.toLowerCase().replace(/\s+/g, "_");
+      let existing = state.profiles.find(p => p.display_name === name);
+      if (existing) {
+        existing.points += pts;
+      } else {
+        existing = { username: uname, display_name: name, points: pts };
+        state.profiles.push(existing);
+      }
+      state.profiles.sort((a, b) => b.points - a.points);
+      persistLocal();
+
+      if (supabaseClient) {
+        await supabaseClient.from("profiles").upsert({
+          username: existing.username,
+          display_name: existing.display_name,
+          points: existing.points
+        }, { onConflict: "username" });
+      }
+    }
+
+    // =========================================================================
+    // 4. ĐIỀU HƯỚNG & GIAO DIỆN ĐA THIẾT BỊ
+    // =========================================================================
+    function switchTab(tabName) {
+      state.currentTab = tabName;
+      ["lessons", "quiz", "contribute", "wiki", "leaderboard", "settings"].forEach(t => {
+        document.getElementById(`tab-${t}`).classList.toggle("hidden", t !== tabName);
+      });
+
+      // Cập nhật trạng thái nút điều hướng Desktop
+      document.querySelectorAll(".nav-btn").forEach(btn => {
+        const active = btn.dataset.nav === tabName;
+        btn.className = active
+          ? "nav-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold bg-brand-600 text-white shadow-sm transition"
+          : "nav-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition";
+      });
+
+      // Cập nhật trạng thái nút điều hướng Mobile Bottom Bar
+      document.querySelectorAll(".nav-btn-mobile").forEach(btn => {
+        const active = btn.dataset.nav === tabName;
+        btn.className = active
+          ? "nav-btn-mobile flex flex-col items-center justify-center gap-0.5 text-[11px] font-bold text-brand-600 dark:text-brand-400"
+          : "nav-btn-mobile flex flex-col items-center justify-center gap-0.5 text-[11px] font-medium text-slate-500 dark:text-slate-400";
+      });
+
+      if (tabName === "quiz") populateQuizSelect();
+      if (tabName === "contribute") populateContributeSelect();
+      if (tabName === "leaderboard") renderLeaderboard();
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+    function toggleDarkMode() {
+      document.documentElement.classList.toggle("dark");
+      localStorage.setItem("sh_dark", document.documentElement.classList.contains("dark") ? "1" : "0");
+    }
+
+    // =========================================================================
+    // 5. HIỂN THỊ KHO BÀI GIẢNG, TÌM KIẾM & WIKIPEDIA API
+    // =========================================================================
+    function handleSearch(val) {
+      state.searchQuery = val.trim().toLowerCase();
+      document.getElementById("globalSearchDesktop").value = val;
+      document.getElementById("globalSearchMobile").value = val;
+      if (state.currentTab !== "lessons") switchTab("lessons");
+      closeLessonDetail();
+      renderLessonsList();
+    }
+
+    function renderSubjectFilters() {
+      const subjects = ["Tất cả", ...new Set(state.lessons.map(l => l.subject))];
+      const container = document.getElementById("subjectFilters");
+      container.innerHTML = subjects.map(sub => {
+        const active = state.selectedSubject === sub;
+        return `<button onclick="selectSubject('${sub.replace(/'/g, "\\'")}')"
+          class="px-3.5 py-1.5 rounded-full text-xs sm:text-sm font-semibold whitespace-nowrap transition ${
+            active
+              ? "bg-brand-600 text-white shadow-sm"
+              : "bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-800 hover:border-brand-400"
+          }">${sub}</button>`;
+      }).join("");
+    }
+
+    function selectSubject(sub) {
+      state.selectedSubject = sub;
+      closeLessonDetail();
+      renderSubjectFilters();
+      renderLessonsList();
+    }
+
+    function renderLessonsList() {
+      const container = document.getElementById("lessonListContainer");
+      const filtered = state.lessons.filter(l => {
+        const matchSub = state.selectedSubject === "Tất cả" || l.subject === state.selectedSubject;
+        const q = state.searchQuery;
+        const matchQuery = !q ||
+          l.title.toLowerCase().includes(q) ||
+          l.subject.toLowerCase().includes(q) ||
+          l.content_md.toLowerCase().includes(q) ||
+          (l.tags || []).some(t => t.toLowerCase().includes(q));
+        return matchSub && matchQuery;
+      });
+
+      if (filtered.length === 0) {
+        container.innerHTML = `<div class="col-span-full bg-white dark:bg-slate-900 rounded-2xl p-8 text-center border border-slate-200 dark:border-slate-800">
+          <p class="text-slate-500 text-sm">Không tìm thấy bài giảng phù hợp. Bạn có thể tạo bài mới bằng AI ở mục <b>Thêm / AI</b>!</p>
+        </div>`;
+        return;
+      }
+
+      container.innerHTML = filtered.map(lesson => {
+        const qCount = state.questions.filter(q => q.lesson_id === lesson.id).length;
+        const tagsHtml = (lesson.tags || []).slice(0, 3).map(t =>
+          `<span class="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[11px] font-medium">#${t}</span>`
+        ).join("");
+
+        return `
+          <div onclick="openLessonDetail('${lesson.id}')"
+            class="group cursor-pointer bg-white dark:bg-slate-900 rounded-2xl p-5 border border-slate-200 dark:border-slate-800 hover:border-brand-500 dark:hover:border-brand-500 shadow-sm hover:shadow transition flex flex-col justify-between gap-4">
+            <div>
+              <div class="flex items-center justify-between gap-2 mb-2">
+                <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-brand-50 text-brand-700 dark:bg-brand-900/40 dark:text-brand-300">${lesson.subject}</span>
+                <span class="text-xs text-slate-400">${qCount} câu hỏi</span>
+              </div>
+              <h3 class="font-bold text-base sm:text-lg group-hover:text-brand-600 transition line-clamp-2">${lesson.title}</h3>
+              <p class="text-xs text-slate-500 mt-1.5 line-clamp-2">${lesson.content_md.replace(/[#*`>]/g, "").slice(0, 120)}...</p>
+            </div>
+            <div class="flex items-center justify-between pt-3 border-t border-slate-100 dark:border-slate-800">
+              <div class="flex flex-wrap gap-1">${tagsHtml}</div>
+              <span class="text-[11px] text-slate-400 shrink-0">✍️ ${lesson.author_name}</span>
+            </div>
+          </div>
+        `;
+      }).join("");
+    }
+
+    function openLessonDetail(lessonId) {
+      const lesson = state.lessons.find(l => l.id === lessonId);
+      if (!lesson) return;
+      state.activeLessonId = lessonId;
+
+      document.getElementById("lessonListContainer").classList.add("hidden");
+      document.getElementById("lessonDetailContainer").classList.remove("hidden");
+      document.getElementById("aiTutorOutput").classList.add("hidden");
+
+      document.getElementById("detailSubject").textContent = lesson.subject;
+      document.getElementById("detailAuthor").textContent = `Đóng góp bởi ${lesson.author_name}`;
+      document.getElementById("detailTitle").textContent = lesson.title;
+      document.getElementById("detailTags").innerHTML = (lesson.tags || []).map(t =>
+        `<span class="px-2.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-xs font-medium">#${t}</span>`
+      ).join("");
+
+      document.getElementById("detailMarkdown").innerHTML = marked.parse(lesson.content_md || "");
+
+      // Cập nhật URL để chia sẻ trực tiếp bài học
+      const url = new URL(window.location);
+      url.searchParams.set("lesson", lessonId);
+      window.history.replaceState({}, "", url);
+
+      fetchWikiSummaryForLesson(lesson.wiki_keyword || lesson.title);
+      renderComments(lessonId);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+    function closeLessonDetail() {
+      state.activeLessonId = null;
+      document.getElementById("lessonDetailContainer").classList.add("hidden");
+      document.getElementById("lessonListContainer").classList.remove("hidden");
+      const url = new URL(window.location);
+      url.searchParams.delete("lesson");
+      window.history.replaceState({}, "", url);
+    }
+
+    async function fetchWikiSummaryForLesson(keyword) {
+      const textEl = document.getElementById("detailWikiText");
+      const linkEl = document.getElementById("detailWikiLink");
+      const badgeEl = document.getElementById("wikiKeywordBadge");
+      badgeEl.textContent = keyword;
+      textEl.textContent = "Đang tải định nghĩa mở rộng từ Wikipedia...";
+      linkEl.classList.add("hidden");
+
+      try {
+        const searchUrl = `https://vi.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(keyword)}&format=json&origin=*`;
+        const sRes = await fetch(searchUrl).then(r => r.json());
+        const topTitle = sRes?.query?.search?.[0]?.title;
+        if (!topTitle) {
+          textEl.textContent = "Chưa tìm thấy bài tóm tắt Wikipedia tương ứng cho từ khóa này.";
+          return;
+        }
+        const sumUrl = `https://vi.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(topTitle)}`;
+        const sumData = await fetch(sumUrl).then(r => r.json());
+        textEl.textContent = sumData.extract || "Không có mô tả chi tiết.";
+        if (sumData.content_urls?.desktop?.page) {
+          linkEl.href = sumData.content_urls.desktop.page;
+          linkEl.classList.remove("hidden");
+        }
+      } catch (e) {
+        textEl.textContent = "Không thể kết nối Wikipedia lúc này.";
+      }
+    }
+
+    function shareCurrentLesson() {
+      const shareUrl = window.location.href;
+      if (navigator.share) {
+        navigator.share({ title: document.getElementById("detailTitle").textContent, url: shareUrl });
+      } else {
+        navigator.clipboard.writeText(shareUrl);
+        showToast("Đã sao chép link bài học để gửi cho nhóm!");
+      }
+    }
+
+    // =========================================================================
+    // 6. BÌNH LUẬN & THẢO LUẬN NHÓM
+    // =========================================================================
+    function renderComments(lessonId) {
+      const list = document.getElementById("commentsList");
+      const items = state.comments.filter(c => c.lesson_id === lessonId);
+      if (items.length === 0) {
+        list.innerHTML = `<p class="text-xs text-slate-400">Chưa có bình luận nào. Hãy là người đầu tiên chia sẻ ghi chú!</p>`;
+        return;
+      }
+      list.innerHTML = items.map(c => `
+        <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/70 border border-slate-100 dark:border-slate-800">
+          <div class="flex items-center justify-between mb-1">
+            <span class="text-xs font-bold text-brand-600 dark:text-brand-400">${c.author_name}</span>
+            <span class="text-[11px] text-slate-400">${new Date(c.created_at).toLocaleString("vi-VN")}</span>
+          </div>
+          <p class="text-sm text-slate-700 dark:text-slate-200">${c.content}</p>
+        </div>
+      `).join("");
+    }
+
+    async function postComment() {
+      const input = document.getElementById("commentInput");
+      const content = input.value.trim();
+      if (!content || !state.activeLessonId) return;
+
+      const newComment = {
+        id: "cmt-" + Date.now(),
+        lesson_id: state.activeLessonId,
+        author_name: state.userName,
+        content,
+        created_at: new Date().toISOString()
+      };
+
+      state.comments.push(newComment);
+      persistLocal();
+      input.value = "";
+      renderComments(state.activeLessonId);
+
+      if (supabaseClient) {
+        await supabaseClient.from("comments").insert(newComment);
+      }
+      showToast("Đã đăng ghi chú thảo luận!");
+    }
+
+    // =========================================================================
+    // 7. TRẮC NGHIỆM THÔNG MINH & ÔN TẬP CÂU SAI
+    // =========================================================================
+    function populateQuizSelect() {
+      const sel = document.getElementById("quizLessonSelect");
+      sel.innerHTML = `<option value="ALL">📚 Tất cả bài học (${state.questions.length} câu)</option>` +
+        state.lessons.map(l => {
+          const count = state.questions.filter(q => q.lesson_id === l.id).length;
+          return `<option value="${l.id}">${l.subject}: ${l.title} (${count} câu)</option>`;
+        }).join("");
+      loadQuizBySelection();
+    }
+
+    function startLessonQuiz() {
+      const lessonId = state.activeLessonId;
+      switchTab("quiz");
+      if (lessonId) {
+        document.getElementById("quizLessonSelect").value = lessonId;
+        loadQuizBySelection();
+      }
+    }
+
+    function loadQuizBySelection() {
+      const val = document.getElementById("quizLessonSelect").value;
+      const list = val === "ALL" ? state.questions : state.questions.filter(q => q.lesson_id === val);
+      renderQuizQuestions(list, val === "ALL" ? "Bộ đề tổng hợp toàn bộ kiến thức" : "Bài luyện tập theo chủ đề");
+    }
+
+    function startWrongQuestionsQuiz() {
+      const list = state.questions.filter(q => state.wrongQuestionIds.includes(q.id));
+      if (list.length === 0) {
+        showToast("Tuyệt vời! Bạn không có câu hỏi nào làm sai cần ôn lại.");
+        return;
+      }
+      renderQuizQuestions(list, "🔥 Chế độ Ôn tập điểm yếu (Các câu từng trả lời sai)");
+    }
+
+    function renderQuizQuestions(questionsList, headingText) {
+      const container = document.getElementById("quizContainer");
+      if (questionsList.length === 0) {
+        container.innerHTML = `<div class="bg-white dark:bg-slate-900 rounded-2xl p-8 text-center border border-slate-200 dark:border-slate-800">
+          <p class="text-sm text-slate-500">Chưa có câu hỏi trắc nghiệm cho bài này. Bạn có thể tự thêm hoặc dùng AI tạo đề ở tab <b>Thêm / AI</b>!</p>
+        </div>`;
+        return;
+      }
+
+      window._activeQuiz = questionsList;
+      window._userAnswers = {};
+
+      container.innerHTML = `
+        <div class="bg-white dark:bg-slate-900 rounded-2xl p-5 sm:p-6 border border-slate-200 dark:border-slate-800 shadow-sm space-y-6">
+          <div class="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+            <h3 class="font-bold text-base">${headingText}</h3>
+            <span class="text-xs font-semibold text-brand-600">${questionsList.length} câu hỏi</span>
+          </div>
+          <div class="space-y-6">
+            ${questionsList.map((q, idx) => `
+              <div id="q-card-${q.id}" class="space-y-2.5">
+                <p class="font-semibold text-sm sm:text-base"><span class="text-brand-600 font-bold">Câu ${idx + 1}:</span> ${q.question}</p>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  ${q.options.map((opt, optIdx) => `
+                    <button type="button" onclick="selectQuizOption('${q.id}', ${optIdx})" id="opt-btn-${q.id}-${optIdx}"
+                      class="opt-group-${q.id} text-left px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-brand-500 text-sm transition flex items-center gap-2.5">
+                      <span class="w-6 h-6 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-xs font-bold shrink-0">${String.fromCharCode(65 + optIdx)}</span>
+                      <span>${opt}</span>
+                    </button>
+                  `).join("")}
+                </div>
+                <div id="exp-${q.id}" class="hidden text-xs sm:text-sm p-3 rounded-xl bg-blue-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200"></div>
+              </div>
+            `).join("")}
+          </div>
+          <div class="pt-4 border-t border-slate-100 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3">
+            <div id="quizScoreResult" class="text-sm font-bold"></div>
+            <button onclick="submitQuiz()" class="px-6 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-sm font-bold shadow">
+              Nộp bài & Xem giải thích
+            </button>
+          </div>
+        </div>
+      `;
+    }
+
+    function selectQuizOption(qId, optIdx) {
+      window._userAnswers[qId] = optIdx;
+      document.querySelectorAll(`.opt-group-${qId}`).forEach((btn, idx) => {
+        if (idx === optIdx) {
+          btn.classList.add("border-brand-600", "bg-brand-50", "dark:bg-brand-900/30", "font-semibold");
+        } else {
+          btn.classList.remove("border-brand-600", "bg-brand-50", "dark:bg-brand-900/30", "font-semibold");
+        }
+      });
+    }
+
+    async function submitQuiz() {
+      const list = window._activeQuiz || [];
+      let correctCount = 0;
+
+      list.forEach(q => {
+        const chosen = window._userAnswers[q.id];
+        const isRight = chosen === q.correct_index;
+        if (isRight) {
+          correctCount++;
+          state.wrongQuestionIds = state.wrongQuestionIds.filter(id => id !== q.id);
+        } else {
+          if (!state.wrongQuestionIds.includes(q.id)) state.wrongQuestionIds.push(q.id);
+        }
+
+        // Tô màu đáp án đúng / sai
+        q.options.forEach((_, idx) => {
+          const btn = document.getElementById(`opt-btn-${q.id}-${idx}`);
+          btn.disabled = true;
+          if (idx === q.correct_index) {
+            btn.className = "text-left px-4 py-3 rounded-xl border-2 border-emerald-500 bg-emerald-50 dark:bg-emerald-900/30 text-sm font-semibold flex items-center gap-2.5";
+          } else if (idx === chosen && !isRight) {
+            btn.className = "text-left px-4 py-3 rounded-xl border-2 border-rose-500 bg-rose-50 dark:bg-rose-900/30 text-sm flex items-center gap-2.5";
+          }
+        });
+
+        const expEl = document.getElementById(`exp-${q.id}`);
+        expEl.classList.remove("hidden");
+        expEl.innerHTML = `<b>${isRight ? "✅ Chính xác!" : "❌ Chưa đúng."}</b> ${q.explanation || ""}`;
+      });
+
+      persistLocal();
+      updateStats();
+
+      const pct = Math.round((correctCount / list.length) * 100);
+      document.getElementById("quizScoreResult").innerHTML =
+        `Kết quả: <span class="text-brand-600 text-base">${correctCount}/${list.length} câu (${pct}%)</span>`;
+
+      if (pct >= 60) {
+        await addPointsToCurrentUser(15);
+        showToast("Chúc mừng! Bạn được cộng +15 điểm học tập!");
+      }
+    }
+
+    // =========================================================================
+    // 8. ĐÓNG GÓP BÀI HỌC, CÂU HỎI & TÍCH HỢP GEMINI AI
+    // =========================================================================
+    function populateContributeSelect() {
+      const sel = document.getElementById("newQuestionLessonId");
+      sel.innerHTML = state.lessons.map(l =>
+        `<option value="${l.id}">${l.subject} — ${l.title}</option>`
+      ).join("");
+    }
+
+    async function saveNewLesson() {
+      const subject = document.getElementById("newLessonSubject").value.trim() || "Kiến thức chung";
+      const title = document.getElementById("newLessonTitle").value.trim();
+      const tagsRaw = document.getElementById("newLessonTags").value.trim();
+      const content_md = document.getElementById("newLessonContent").value.trim();
+
+      if (!title || !content_md) {
+        showToast("Vui lòng nhập tiêu đề và nội dung bài giảng!");
+        return;
+      }
+
+      const newLesson = {
+        id: "lesson-" + Date.now(),
+        subject,
+        title,
+        tags: tagsRaw ? tagsRaw.split(",").map(s => s.trim()).filter(Boolean) : [subject],
+        wiki_keyword: title,
+        content_md,
+        author_name: state.userName,
+        created_at: new Date().toISOString()
+      };
+
+      state.lessons.unshift(newLesson);
+      persistLocal();
+      await addPointsToCurrentUser(20);
+
+      if (supabaseClient) {
+        await supabaseClient.from("lessons").insert(newLesson);
+      }
+
+      document.getElementById("newLessonTitle").value = "";
+      document.getElementById("newLessonContent").value = "";
+      renderAll();
+      showToast("Đã đăng bài giảng mới (+20 điểm)!");
+      switchTab("lessons");
+      openLessonDetail(newLesson.id);
+    }
+
+    async function saveNewQuestion() {
+      const lesson_id = document.getElementById("newQuestionLessonId").value;
+      const question = document.getElementById("newQuestionText").value.trim();
+      const options = [
+        document.getElementById("opt0").value.trim(),
+        document.getElementById("opt1").value.trim(),
+        document.getElementById("opt2").value.trim(),
+        document.getElementById("opt3").value.trim()
+      ];
+      const correct_index = parseInt(document.getElementById("newQuestionCorrect").value, 10);
+      const explanation = document.getElementById("newQuestionExplanation").value.trim();
+
+      if (!question || options.some(o => !o)) {
+        showToast("Vui lòng nhập đầy đủ câu hỏi và 4 đáp án!");
+        return;
+      }
+
+      const newQ = {
+        id: "q-" + Date.now(),
+        lesson_id,
+        question,
+        options,
+        correct_index,
+        explanation,
+        author_name: state.userName
+      };
+
+      state.questions.push(newQ);
+      persistLocal();
+      await addPointsToCurrentUser(10);
+
+      if (supabaseClient) {
+        await supabaseClient.from("questions").insert(newQ);
+      }
+
+      ["newQuestionText", "opt0", "opt1", "opt2", "opt3", "newQuestionExplanation"].forEach(id => {
+        document.getElementById(id).value = "";
+      });
+      updateStats();
+      showToast("Đã lưu câu hỏi mới vào ngân hàng đề (+10 điểm)!");
+    }
+
+    async function callGeminiAPI(promptText) {
+      if (!state.geminiKey) {
+        showToast("Vui lòng nhập Gemini API Key trong mục Cài đặt trước!");
+        switchTab("settings");
+        return null;
+      }
+      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(state.geminiKey)}`;
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: promptText }] }]
+        })
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error.message);
+      return data?.candidates?.[0]?.content?.parts?.[0]?.text || "";
+    }
+
+    async function askLessonAI(presetQuestion) {
+      const lesson = state.lessons.find(l => l.id === state.activeLessonId);
+      if (!lesson) return;
+      const inputEl = document.getElementById("aiTutorInput");
+      const userPrompt = presetQuestion || inputEl.value.trim();
+      if (!userPrompt) return;
+
+      const outEl = document.getElementById("aiTutorOutput");
+      outEl.classList.remove("hidden");
+      outEl.innerHTML = `<p class="text-slate-400 animate-pulse">🤖 Gia sư AI đang phân tích bài học và trả lời...</p>`;
+
+      try {
+        const prompt = `Bạn là gia sư AI hỗ trợ học tập bằng tiếng Việt. Dựa trên bài học sau:
+Tiêu đề: ${lesson.title}
+Nội dung:
+${lesson.content_md}
+
+Hãy trả lời yêu cầu của sinh viên một cách rõ ràng, súc tích, định dạng Markdown đẹp mắt:
+"${userPrompt}"`;
+        const reply = await callGeminiAPI(prompt);
+        if (reply) outEl.innerHTML = marked.parse(reply);
+      } catch (err) {
+        outEl.innerHTML = `<p class="text-rose-500">Lỗi gọi Gemini API: ${err.message}</p>`;
+      }
+    }
+
+    async function generateLessonWithAI() {
+      const subject = document.getElementById("aiGenSubject").value.trim() || "Kiến thức tổng hợp";
+      const topic = document.getElementById("aiGenTopic").value.trim();
+      const rawText = document.getElementById("aiGenRawText").value.trim();
+      if (!topic && !rawText) {
+        showToast("Hãy nhập tên chủ đề hoặc nội dung tài liệu!");
+        return;
+      }
+
+      const btn = document.getElementById("aiGenBtn");
+      const status = document.getElementById("aiGenStatus");
+      btn.disabled = true;
+      btn.textContent = "⏳ Đang tạo tri thức...";
+      status.textContent = "AI đang biên soạn bài giảng Markdown và bộ câu hỏi trắc nghiệm...";
+
+      try {
+        const prompt = `Hãy đóng vai chuyên gia giáo dục, biên soạn một bài giảng học thuật chi tiết bằng tiếng Việt và 4 câu hỏi trắc nghiệm có giải thích.
+Môn học: ${subject}
+Chủ đề: ${topic}
+Tài liệu tham khảo đầu vào: ${rawText}
+
+Trả về DUY NHẤT một chuỗi JSON hợp lệ (không bọc markdown \`\`\`json) theo đúng cấu trúc:
+{
+  "title": "Tiêu đề bài giảng hấp dẫn",
+  "tags": ["Tag1", "Tag2", "Tag3"],
+  "wiki_keyword": "Từ khóa chính để tra Wikipedia",
+  "content_md": "Nội dung bài giảng chi tiết trình bày bằng Markdown (có tiêu đề ##, ý chính, bảng so sánh hoặc ví dụ cụ thể)",
+  "questions": [
+    {
+      "question": "Nội dung câu hỏi 1?",
+      "options": ["Đáp án A", "Đáp án B", "Đáp án C", "Đáp án D"],
+      "correct_index": 0,
+      "explanation": "Giải thích chi tiết đáp án đúng"
+    }
+  ]
+}`;
+        let rawReply = await callGeminiAPI(prompt);
+        if (!rawReply) return;
+        rawReply = rawReply.replace(/```json/gi, "").replace(/```/g, "").trim();
+        const parsed = JSON.parse(rawReply);
+
+        const lessonId = "lesson-" + Date.now();
+        const newLesson = {
+          id: lessonId,
+          subject,
+          title: parsed.title || topic,
+          tags: parsed.tags || [subject],
+          wiki_keyword: parsed.wiki_keyword || topic,
+          content_md: parsed.content_md,
+          author_name: `${state.userName} (AI Hỗ trợ)`,
+          created_at: new Date().toISOString()
+        };
+
+        state.lessons.unshift(newLesson);
+        if (supabaseClient) await supabaseClient.from("lessons").insert(newLesson);
+
+        const newQs = (parsed.questions || []).map((q, idx) => ({
+          id: `q-${Date.now()}-${idx}`,
+          lesson_id: lessonId,
+          question: q.question,
+          options: q.options,
+          correct_index: q.correct_index,
+          explanation: q.explanation,
+          author_name: state.userName
+        }));
+
+        state.questions.push(...newQs);
+        if (supabaseClient && newQs.length > 0) await supabaseClient.from("questions").insert(newQs);
+
+        persistLocal();
+        await addPointsToCurrentUser(25);
+        renderAll();
+        showToast(`Đã tạo bài giảng + ${newQs.length} câu trắc nghiệm!`);
+        switchTab("lessons");
+        openLessonDetail(lessonId);
+      } catch (err) {
+        status.textContent = "Có lỗi khi xử lý dữ liệu AI: " + err.message;
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "⚡ Tạo Bài Học & Trắc Nghiệm";
+      }
+    }
+
+    // =========================================================================
+    // 9. TRA CỨU WIKIPEDIA MỞ RỘNG & LƯU THÀNH BÀI GIẢNG
+    // =========================================================================
+    async function searchWikipedia() {
+      const q = document.getElementById("wikiSearchInput").value.trim();
+      if (!q) return;
+      const box = document.getElementById("wikiResultsContainer");
+      box.innerHTML = `<p class="text-sm text-slate-400">Đang tìm kiếm tri thức trên Wikipedia...</p>`;
+
+      try {
+        const url = `https://vi.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(q)}&srlimit=5&format=json&origin=*`;
+        const data = await fetch(url).then(r => r.json());
+        const results = data?.query?.search || [];
+
+        if (results.length === 0) {
+          box.innerHTML = `<p class="text-sm text-slate-500">Không tìm thấy kết quả phù hợp trên Wikipedia tiếng Việt.</p>`;
+          return;
+        }
+
+        box.innerHTML = results.map(item => {
+          const cleanSnippet = item.snippet.replace(/<[^>]+>/g, "");
+          return `
+            <div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <h4 class="font-bold text-base text-brand-600 dark:text-brand-400">${item.title}</h4>
+                <p class="text-xs sm:text-sm text-slate-600 dark:text-slate-300 mt-1">${cleanSnippet}...</p>
+              </div>
+              <button onclick="importWikiAsLesson('${item.title.replace(/'/g, "\\'")}')"
+                class="px-3.5 py-2 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-xs font-semibold shrink-0">
+                + Lưu vào kho học tập
+              </button>
+            </div>
+          `;
+        }).join("");
+      } catch (e) {
+        box.innerHTML = `<p class="text-sm text-rose-500">Lỗi kết nối Wikipedia API.</p>`;
+      }
+    }
+
+    async function importWikiAsLesson(title) {
+      try {
+        const sumUrl = `https://vi.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(title)}`;
+        const sumData = await fetch(sumUrl).then(r => r.json());
+        const newLesson = {
+          id: "lesson-" + Date.now(),
+          subject: "Bách Khoa Tri Thức",
+          title: sumData.title || title,
+          tags: ["Wikipedia", "Tra cứu"],
+          wiki_keyword: title,
+          content_md: `## Tổng quan khái niệm
+${sumData.extract || ""}
+
+> Nguồn tham khảo tự động từ Wikipedia.`,
+          author_name: state.userName,
+          created_at: new Date().toISOString()
+        };
+        state.lessons.unshift(newLesson);
+        persistLocal();
+        if (supabaseClient) await supabaseClient.from("lessons").insert(newLesson);
+        await addPointsToCurrentUser(10);
+        renderAll();
+        showToast("Đã lưu kiến thức Wikipedia vào kho bài học!");
+        switchTab("lessons");
+        openLessonDetail(newLesson.id);
+      } catch (e) {
+        showToast("Không thể tải chi tiết bài viết này.");
+      }
+    }
+
+    // =========================================================================
+    // 10. BẢNG XẾP HẠNG & CÀI ĐẶT
+    // =========================================================================
+    function renderLeaderboard() {
+      const list = document.getElementById("leaderboardList");
+      list.innerHTML = state.profiles.map((p, idx) => `
+        <div class="py-3.5 flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <span class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${
+              idx === 0 ? "bg-amber-100 text-amber-700" : idx === 1 ? "bg-slate-200 text-slate-700" : "bg-slate-100 dark:bg-slate-800 text-slate-500"
+            }">#${idx + 1}</span>
+            <div>
+              <p class="font-bold text-sm">${p.display_name}</p>
+              <p class="text-[11px] text-slate-400">Thành viên nhóm học tập</p>
+            </div>
+          </div>
+          <span class="px-3 py-1 rounded-full bg-brand-50 dark:bg-brand-900/30 text-brand-700 dark:text-brand-300 text-xs font-bold">${p.points} điểm</span>
+        </div>
+      `).join("");
+    }
+
+    function copyInviteLink() {
+      const url = window.location.origin + window.location.pathname;
+      navigator.clipboard.writeText(url);
+      showToast("Đã sao chép đường link web! Gửi ngay cho bạn bè cùng học.");
+    }
+
+    function saveUserProfile() {
+      const val = document.getElementById("settingDisplayName").value.trim();
+      if (!val) return;
+      state.userName = val;
+      localStorage.setItem("sh_username", val);
+      document.getElementById("currentUserName").textContent = val;
+      addPointsToCurrentUser(0);
+      showToast("Đã cập nhật tên thành viên!");
+    }
+
+    function saveCloudSettings() {
+      state.supabaseUrl = document.getElementById("settingSupabaseUrl").value.trim();
+      state.supabaseKey = document.getElementById("settingSupabaseKey").value.trim();
+      localStorage.setItem("sh_sb_url", state.supabaseUrl);
+      localStorage.setItem("sh_sb_key", state.supabaseKey);
+      initSupabase();
+      showToast("Đã lưu cấu hình đồng bộ Supabase!");
+    }
+
+    function saveGeminiKey() {
+      state.geminiKey = document.getElementById("settingGeminiKey").value.trim();
+      localStorage.setItem("sh_gemini_key", state.geminiKey);
+      showToast("Đã lưu Gemini API Key!");
+    }
+
+    function updateStats() {
+      document.getElementById("statLessons").textContent = state.lessons.length;
+      document.getElementById("statQuestions").textContent = state.questions.length;
+      document.getElementById("statWrong").textContent = state.wrongQuestionIds.length;
+      document.getElementById("wrongCountBtn").textContent = state.wrongQuestionIds.length;
+    }
+
+    function renderAll() {
+      renderSubjectFilters();
+      renderLessonsList();
+      updateStats();
+    }
+
+    // =========================================================================
+    // 11. KHỞI CHẠY ỨNG DỤNG & ĐĂNG KÝ SERVICE WORKER (PWA)
+    // =========================================================================
+    window.addEventListener("DOMContentLoaded", () => {
+      if (localStorage.getItem("sh_dark") === "1") {
+        document.documentElement.classList.add("dark");
+      }
+      document.getElementById("currentUserName").textContent = state.userName;
+      document.getElementById("settingDisplayName").value = state.userName;
+      document.getElementById("settingSupabaseUrl").value = state.supabaseUrl;
+      document.getElementById("settingSupabaseKey").value = state.supabaseKey;
+      document.getElementById("settingGeminiKey").value = state.geminiKey;
+
+      switchTab("lessons");
+      renderAll();
+      initSupabase();
+
+      // Mở thẳng bài học nếu truy cập từ link chia sẻ (?lesson=...)
+      const params = new URLSearchParams(window.location.search);
+      const sharedLessonId = params.get("lesson");
+      if (sharedLessonId) {
+        openLessonDetail(sharedLessonId);
+      }
+
+      if ("serviceWorker" in navigator) {
+        navigator.serviceWorker.register("./sw.js").catch(() => {});
+      }
+    });
+  </script>
+</body>
+</html>
